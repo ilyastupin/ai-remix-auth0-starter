@@ -41,9 +41,9 @@ export default function DashboardLayout() {
 
       <div className="bg-white border-b border-slate-200">
         <nav className="max-w-6xl mx-auto flex gap-6 px-4 py-3 text-sm font-semibold text-slate-600">
+          <DashboardLink to="/dashboard">Assignments</DashboardLink>
           <DashboardLink to="/dashboard/cleaners">Cleaners</DashboardLink>
           <DashboardLink to="/dashboard/jobs">Jobs</DashboardLink>
-          <DashboardLink to="/dashboard/assignments">Assignments</DashboardLink>
         </nav>
       </div>
 
