@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node'
 import { json } from '@remix-run/node'
 import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react'
-import { useMemo, type CSSProperties } from 'react'
+import { useCallback, useMemo, type CSSProperties } from 'react'
 import { AppTopNav } from '~/components/AppTopNav'
 import { requireAuth } from '~/services/auth.server'
 import {
@@ -107,6 +107,18 @@ type HexTileProps = {
 }
 
 function HexTile({ tile }: HexTileProps) {
+  const baseChipSize = 70.4
+  const baseFontSize = 18
+
+  function tokenFontScale(token: number | null): number {
+    if (token === null) return 1
+    if (token === 6 || token === 8) return 2
+    if (token === 5 || token === 9) return 1.7
+    if (token === 4 || token === 10) return 1.4
+    if (token === 3 || token === 11) return 1.2
+    return 1 // 2 or 12
+  }
+
   const style: CSSProperties = {
     width: 176,
     height: 192,
@@ -118,8 +130,8 @@ function HexTile({ tile }: HexTileProps) {
   }
 
   const chipStyle: CSSProperties = {
-    width: 70.4,
-    height: 70.4,
+    width: baseChipSize,
+    height: baseChipSize,
     borderRadius: '50%',
     background: '#fef3c7',
     border: '2px solid #fbbf24',
@@ -132,23 +144,32 @@ function HexTile({ tile }: HexTileProps) {
   }
 
   const robberStyle: CSSProperties = {
-    ...chipStyle,
+    width: baseChipSize,
+    height: baseChipSize,
+    borderRadius: '50%',
     background: '#111827',
     color: '#f8fafc',
-    borderColor: '#1f2937'
+    borderColor: '#1f2937',
+    border: '2px solid #1f2937',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 800,
+    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
+    backgroundImage: 'url(/robber.png)',
+    backgroundSize: '105% 105%',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center'
   }
 
   return (
     <div style={style} className="flex items-center justify-center text-center">
       <span className="absolute left-1 top-1 text-[10px] font-semibold text-slate-900 drop-shadow">#{tile.id}</span>
-      <span className="absolute bottom-1 left-0 right-0 text-[11px] font-semibold uppercase tracking-wide text-slate-900 drop-shadow">
-        {tile.terrain}
-      </span>
 
       {tile.hasRobber ? (
-        <div style={robberStyle}>R</div>
+        <div style={robberStyle}></div>
       ) : tile.token !== null ? (
-        <div style={chipStyle}>{tile.token}</div>
+        <div style={{ ...chipStyle, fontSize: baseFontSize * tokenFontScale(tile.token) }}>{tile.token}</div>
       ) : null}
     </div>
   )
@@ -176,16 +197,33 @@ function chunkHexRows<T>(tiles: T[]): T[][] {
 }
 
 function terrainStyle(terrain: string): CSSProperties {
-  const palette: Record<string, string> = {
-    wood: 'linear-gradient(135deg, #166534, #22c55e)',
-    wheat: 'linear-gradient(135deg, #eab308, #facc15)',
-    sheep: 'linear-gradient(135deg, #16a34a, #4ade80)',
-    brick: 'linear-gradient(135deg, #9f1239, #f97316)',
-    ore: 'linear-gradient(135deg, #475569, #94a3b8)',
-    desert: 'linear-gradient(135deg, #eab308, #eab308)'
+  const images: Record<string, string> = {
+    wood: '/wood.png',
+    wheat: '/wheat.png',
+    sheep: '/pasture.png',
+    brick: '/hills.png',
+    ore: '/mountains.png',
+    desert: '/desert.png'
   }
+
+  const palette: Record<string, string> = {
+    desert: 'linear-gradient(135deg, #e5e7eb, #cbd5e1)'
+  }
+
+  const image = images[terrain]
+  if (image) {
+    return {
+      backgroundImage: `url(${image})`,
+      backgroundSize: '150% 150%',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
+      color: '#0f172a'
+    }
+  }
+
+  const bg = palette[terrain] ?? '#e5e7eb'
   return {
-    background: palette[terrain] ?? '#cbd5e1',
+    background: bg,
     color: '#0f172a'
   }
 }
@@ -216,6 +254,16 @@ export default function GamePage() {
   }, [selectedGame, confirmedPlayers, gameState.playerOrder])
 
   const orderJson = JSON.stringify(orderedPlayers.map((p) => p.email))
+
+  const handleDevClick = useCallback(async (card: { title: string; count: number; note: string }) => {
+    const Swal = (await import('sweetalert2')).default
+    await Swal.fire({
+      title: card.title,
+      html: `<p style="margin:4px 0;">Cards in deck: <strong>${card.count}</strong></p><p style="margin:4px 0;">${card.note}</p>`,
+      icon: 'info',
+      confirmButtonText: 'Close'
+    })
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -474,6 +522,92 @@ export default function GamePage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Development cards</h3>
+                    <p className="text-sm text-slate-600">Starter deck counts with quick reminders.</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-5">
+                  {[
+                    {
+                      key: 'knight',
+                      image: '/knight.png',
+                      count: 14,
+                      title: 'Knight',
+                      note: 'Move the robber and steal 1 resource.'
+                    },
+                    {
+                      key: 'road-building',
+                      image: '/road-building.png',
+                      count: 2,
+                      title: 'Road Building',
+                      note: 'Place 2 roads for free.'
+                    },
+                    {
+                      key: 'year-of-plenty',
+                      image: '/year-of-plenty.png',
+                      count: 2,
+                      title: 'Year of Plenty',
+                      note: 'Take any 2 resource cards from the bank.'
+                    },
+                    {
+                      key: 'monopoly',
+                      image: '/monopoly.png',
+                      count: 2,
+                      title: 'Monopoly',
+                      note: 'All players give you all of one resource type you choose.'
+                    },
+                    {
+                      key: 'victory-point',
+                      image: '/victory-point.png',
+                      count: 5,
+                      title: 'Victory Point',
+                      note: 'Keep hidden; +1 VP at game end.'
+                    }
+                  ].map((card) => (
+                    <div
+                      key={card.key}
+                      className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm text-center cursor-pointer"
+                      onClick={() => handleDevClick({ title: card.title, count: card.count, note: card.note })}
+                    >
+                      <img src={card.image} alt={card.key} className="h-50 w-32 rounded-sm object-contain" />
+                      <div className="mt-2 text-sm font-semibold text-slate-900">Cards: {card.count}</div>
+                      <div className="mt-1 text-xs text-slate-600">{card.note}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Resource piles</h3>
+                    <p className="text-sm text-slate-600">Available cards at start (19 each).</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-5">
+                  {[
+                    { key: 'wheat', image: '/bread.png' },
+                    { key: 'brick', image: '/brick.png' },
+                    { key: 'ore', image: '/iron.png' },
+                    { key: 'wood', image: '/lumber.png' },
+                    { key: 'sheep', image: '/sheep.png' }
+                  ].map((pile) => (
+                    <div
+                      key={pile.key}
+                      className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm"
+                    >
+                      <img src={pile.image} alt={pile.key} className="h-50 w-32 object-contain" />
+                      <div className="mt-2 text-sm font-semibold text-slate-900">Cards: 19</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
