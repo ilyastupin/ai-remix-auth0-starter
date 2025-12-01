@@ -14,7 +14,8 @@ import {
   listMemberGames,
   rejectPlayer,
   removePlayer,
-  requestJoinGame
+  requestJoinGame,
+  setCurrentGameForUser
 } from '~/services/games.server'
 
 type ActionMessage = { ok: boolean; message: string }
@@ -27,7 +28,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const [adminGames, memberGames] = await Promise.all([listAdminGames(user.email), listMemberGames(user.email)])
 
-  return json({ user, adminGames, memberGames })
+  const markCurrent = <T extends { players: { email: string; isCurrent?: boolean }[] }>(game: T) => ({
+    ...game,
+    isCurrentForUser: game.players.some((p) => p.email === user.email && p.isCurrent)
+  })
+
+  const adminGamesWithFlag = adminGames.map((g) => markCurrent(g))
+  const memberGamesWithFlag = memberGames.map((g) =>
+    g.isCurrentForUser === undefined ? markCurrent(g) : g
+  )
+
+  return json({ user, adminGames: adminGamesWithFlag, memberGames: memberGamesWithFlag })
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -88,6 +99,13 @@ export async function action({ request }: ActionFunctionArgs) {
       return json<ActionMessage>(result, { status: result.ok ? 200 : 400 })
     }
 
+    case 'set-current': {
+      const gameId = Number(formData.get('gameId'))
+      if (!gameId) return json<ActionMessage>({ ok: false, message: 'Missing game id.' }, { status: 400 })
+      const result = await setCurrentGameForUser(gameId, user.email)
+      return json<ActionMessage>(result, { status: result.ok ? 200 : 400 })
+    }
+
     case 'leave-game': {
       const gameId = Number(formData.get('gameId'))
       if (!gameId) return json<ActionMessage>({ ok: false, message: 'Missing game id.' }, { status: 400 })
@@ -108,17 +126,25 @@ export default function AdministrationPage() {
 
   async function confirmAndSubmit(event: FormEvent<HTMLFormElement>, title: string, confirmText: string) {
     event.preventDefault()
-    const Swal = (await import('sweetalert2')).default
-    const result = await Swal.fire({
-      title,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: confirmText,
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626'
-    })
-    if (result.isConfirmed) {
-      event.currentTarget.submit()
+    const form = event.currentTarget
+    let confirmed = false
+    try {
+      const Swal = (await import('sweetalert2')).default
+      const result = await Swal.fire({
+        title,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: confirmText,
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc2626'
+      })
+      confirmed = result.isConfirmed
+    } catch {
+      confirmed = window.confirm(title)
+    }
+
+    if (confirmed) {
+      form.submit()
     }
   }
 
@@ -231,14 +257,31 @@ export default function AdministrationPage() {
                           Created {format(game.createdAt, 'PPP p')} by {game.createdBy}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
-                          Join code: {game.joinCode}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                        Join code: {game.joinCode}
+                      </span>
+                      {game.isCurrentForUser ? (
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                          Current
                         </span>
-                        <Form
-                          method="post"
-                          onSubmit={(event) => confirmAndSubmit(event, 'Delete this game?', 'Yes, delete it')}
-                        >
+                      ) : (
+                        <Form method="post">
+                          <input type="hidden" name="intent" value="set-current" />
+                          <input type="hidden" name="gameId" value={game.id} />
+                          <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="rounded-md bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-60"
+                          >
+                            Set as current
+                          </button>
+                        </Form>
+                      )}
+                      <Form
+                        method="post"
+                        onSubmit={(event) => confirmAndSubmit(event, 'Delete this game?', 'Yes, delete it')}
+                      >
                           <input type="hidden" name="intent" value="delete-game" />
                           <input type="hidden" name="gameId" value={game.id} />
                           <button
@@ -380,13 +423,32 @@ export default function AdministrationPage() {
                         <h3 className="text-lg font-semibold text-slate-900">{game.name}</h3>
                         <p className="text-xs text-slate-600">Created {format(game.createdAt, 'PPP p')}</p>
                       </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                          isWaiting ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'
-                        }`}
-                      >
-                        Your status: {game.myStatus}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                            isWaiting ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          Your status: {game.myStatus}
+                        </span>
+                        {game.isCurrentForUser ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                            Current
+                          </span>
+                        ) : (
+                          <Form method="post">
+                            <input type="hidden" name="intent" value="set-current" />
+                            <input type="hidden" name="gameId" value={game.id} />
+                            <button
+                              type="submit"
+                              disabled={isSubmitting}
+                              className="rounded-md bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-60"
+                            >
+                              Set as current
+                            </button>
+                          </Form>
+                        )}
+                      </div>
                     </div>
 
                     {isWaiting ? (

@@ -7,8 +7,12 @@
 - Any signed-in user can attempt to join an existing game via the join code; they enter a waiting state until approved.
 - The creator (admin) can view/manage join requests and confirmed players for their games.
 - Players can see games they are part of (waiting or confirmed) and may leave a game; they cannot see join codes unless they are the admin.
-- Top navigation shows two items: Game and Administration. All flows below happen in Administration. Game is currently empty.
+- Top navigation shows two items: Game and Administration. Administration handles game creation/join/approval; Game handles Catan setup (status, order, layout).
 - Admins can delete a game they created (removes all players and invalidates the join code).
+- Catan game data is stored as JSON in the `games` table (game_state): player order, board layout (hexes + tokens), robber placement. Game statuses: `not_started`, `started`, `finished`.
+- Player order can be rearranged only while `not_started`. Changes persist immediately.
+- Board layout (hexes + tokens) can be generated via “Create layout” only while `not_started` (available from the Game page). Layout state is stored in JSON.
+- Each user can mark exactly one game as current. If a user has no current game, a newly created game becomes current automatically. Users/admins can set any game they belong to as current; UI shows a Current flag.
 
 ## Roles and visibility
 - Admin (per game): sees game name, created time, join code, all players (admin, waiting, confirmed). Can approve waiting, reject waiting, remove confirmed, and remove self if needed.

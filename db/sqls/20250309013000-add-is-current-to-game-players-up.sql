@@ -1,0 +1,2 @@
+ALTER TABLE game_players
+  ADD COLUMN is_current TINYINT(1) NOT NULL DEFAULT 0;
