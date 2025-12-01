@@ -1,30 +1,26 @@
-import { env } from '~/env.server'
-
 export type UserAccess = 'admin' | 'cleaner' | 'none'
 
 export async function getUserAccess(email: string): Promise<UserAccess> {
-  const superAdminEmail = env.SUPER_ADMIN_EMAIL || 'admin@example.com'
-  if (email === superAdminEmail) return 'admin'
-  return 'none'
+  // No global super admin; any authenticated user can access the app.
+  return 'admin'
 }
 
 export async function getLandingPage(email: string): Promise<string> {
-  const access = await getUserAccess(email)
-  if (access === 'admin') return '/dashboard'
-  return '/no-access'
+  await getUserAccess(email)
+  return '/administration'
 }
 
 export async function isAdmin(email: string): Promise<boolean> {
-  const access = await getUserAccess(email)
-  return access === 'admin'
+  await getUserAccess(email)
+  return true
 }
 
 export async function isUser(email: string): Promise<boolean> {
-  const access = await getUserAccess(email)
-  return access !== 'none'
+  await getUserAccess(email)
+  return true
 }
 
 export async function isCleaner(email: string): Promise<boolean> {
-  const access = await getUserAccess(email)
-  return access === 'cleaner'
+  await getUserAccess(email)
+  return false
 }

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Administration (Admin view)</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-2: #16a34a;
+      --border: #e2e8f0;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 10% 20%, rgba(37,99,235,0.07), transparent 35%),
+                  radial-gradient(circle at 90% 10%, rgba(22,163,74,0.08), transparent 30%),
+                  var(--bg);
+      color: var(--ink);
+    }
+    header {
+      background: #0b1224;
+      color: #e2e8f0;
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    nav a {
+      color: #cbd5e1;
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 10px;
+      transition: background 0.2s ease, color 0.2s ease;
+      font-weight: 600;
+    }
+    nav a.active {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    nav a:hover { background: rgba(255,255,255,0.06); }
+    .user-pill {
+      background: rgba(255,255,255,0.08);
+      padding: 8px 12px;
+      border-radius: 12px;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+    main {
+      max-width: 1180px;
+      margin: 28px auto 56px;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .page-title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 18px 16px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+    .card h2, .card h3 { margin: 0; }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .section-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .flex-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+      background: #f8fafc;
+    }
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 16px rgba(37,99,235,0.22);
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    button.success {
+      background: var(--accent-2);
+      color: #fff;
+    }
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    button:hover { transform: translateY(-1px); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #e0f2fe;
+      color: #075985;
+      border: 1px solid #bae6fd;
+      letter-spacing: 0.01em;
+    }
+    .pill.muted {
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #e2e8f0;
+    }
+    .pill.waiting {
+      background: #fff7ed;
+      color: #b45309;
+      border-color: #fed7aa;
+    }
+    .pill.confirmed {
+      background: #ecfdf3;
+      color: #15803d;
+      border-color: #bbf7d0;
+    }
+    .pill.admin {
+      background: #eef2ff;
+      color: #4f46e5;
+      border-color: #c7d2fe;
+    }
+    .stack { display: flex; flex-direction: column; gap: 10px; }
+    .game-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: linear-gradient(135deg, rgba(37,99,235,0.03), transparent);
+    }
+    .game-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .game-name { font-size: 18px; margin: 0; font-weight: 800; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .list-item {
+      padding: 10px 12px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .player-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .player-name { font-weight: 700; }
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 14px;
+      margin: 6px 0 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Group Game</div>
+    <nav>
+      <a href="#" aria-label="Game page">Game</a>
+      <a href="#" class="active" aria-label="Administration page">Administration</a>
+    </nav>
+    <div class="user-pill">admin@player.com</div>
+  </header>
+
+  <main>
+    <div>
+      <h1 class="page-title">Administration</h1>
+      <p class="subtitle">Create games, approve join requests, and manage players. This is an admin mockup only.</p>
+    </div>
+
+    <div class="flex-row">
+      <div class="card">
+        <div class="section-header">
+          <div>
+            <h2>Start a new game</h2>
+            <p>Enter a name to generate a unique 6-digit join code.</p>
+          </div>
+        </div>
+        <label for="game-name">Game name</label>
+        <input id="game-name" type="text" placeholder="e.g. Friday Poker Night">
+        <div class="button-row" style="margin-top: 12px;">
+          <button class="primary">Create game and join as admin</button>
+          <span class="pill muted">Join code appears after creation</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-header">
+          <div>
+            <h2>Join an existing game</h2>
+            <p>Use the 6-digit code shared by a game admin.</p>
+          </div>
+        </div>
+        <label for="join-code">Join code</label>
+        <input id="join-code" type="text" placeholder="Enter 6 digits">
+        <div class="button-row" style="margin-top: 12px;">
+          <button class="primary">Look up game</button>
+          <span class="pill muted">You will join as waiting until approved</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <div>
+          <h2>Games I administer</h2>
+          <p>See join codes, approve waiting players, manage members, or delete the game.</p>
+        </div>
+        <span class="pill">Join code visible to admins</span>
+      </div>
+
+      <div class="stack">
+        <div class="game-card">
+          <div class="game-head">
+            <div>
+              <p class="game-name">Friday Poker Night</p>
+              <div class="meta">Created Mar 02, 2025 at 7:10 PM</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+              <div class="pill admin">Join code: 482913</div>
+              <button class="danger">Delete game</button>
+            </div>
+          </div>
+
+          <div class="flex-row" style="margin-top: 10px;">
+            <div>
+              <h3>Confirmed players</h3>
+              <ul class="list">
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">admin@player.com</span>
+                    <span class="pill admin">admin</span>
+                  </div>
+                  <button class="secondary">Leave game</button>
+                </li>
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">amy@example.com</span>
+                    <span class="pill confirmed">confirmed</span>
+                  </div>
+                  <button class="danger">Remove</button>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3>Waiting requests</h3>
+              <ul class="list">
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">mario@example.com</span>
+                    <span class="pill waiting">waiting</span>
+                  </div>
+                  <div class="button-row">
+                    <button class="success">Approve</button>
+                    <button class="secondary">Reject</button>
+                  </div>
+                </li>
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">sam@example.com</span>
+                    <span class="pill waiting">waiting</span>
+                  </div>
+                  <div class="button-row">
+                    <button class="success">Approve</button>
+                    <button class="secondary">Reject</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-card">
+          <div class="game-head">
+            <div>
+              <p class="game-name">Settlers Club</p>
+              <div class="meta">Created Feb 25, 2025 at 8:45 PM</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+              <div class="pill admin">Join code: 938201</div>
+              <button class="danger">Delete game</button>
+            </div>
+          </div>
+
+          <div class="flex-row" style="margin-top: 10px;">
+            <div>
+              <h3>Confirmed players</h3>
+              <ul class="list">
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">admin@player.com</span>
+                    <span class="pill admin">admin</span>
+                  </div>
+                  <button class="secondary">Leave game</button>
+                </li>
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">dana@example.com</span>
+                    <span class="pill confirmed">confirmed</span>
+                  </div>
+                  <button class="danger">Remove</button>
+                </li>
+                <li class="list-item">
+                  <div class="player-info">
+                    <span class="player-name">jon@example.com</span>
+                    <span class="pill confirmed">confirmed</span>
+                  </div>
+                  <button class="danger">Remove</button>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3>Waiting requests</h3>
+              <p class="empty">No pending requests.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
