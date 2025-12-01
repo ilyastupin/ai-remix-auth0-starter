@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node'
 import { json } from '@remix-run/node'
 import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react'
+import type { FormEvent } from 'react'
 import { format } from 'date-fns'
 import { AppTopNav } from '~/components/AppTopNav'
 import { requireAuth } from '~/services/auth.server'
@@ -104,6 +105,22 @@ export default function AdministrationPage() {
   const actionData = useActionData<ActionMessage>()
   const navigation = useNavigation()
   const isSubmitting = navigation.state === 'submitting'
+
+  async function confirmAndSubmit(event: FormEvent<HTMLFormElement>, title: string, confirmText: string) {
+    event.preventDefault()
+    const Swal = (await import('sweetalert2')).default
+    const result = await Swal.fire({
+      title,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626'
+    })
+    if (result.isConfirmed) {
+      event.currentTarget.submit()
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -218,7 +235,10 @@ export default function AdministrationPage() {
                         <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
                           Join code: {game.joinCode}
                         </span>
-                        <Form method="post">
+                        <Form
+                          method="post"
+                          onSubmit={(event) => confirmAndSubmit(event, 'Delete this game?', 'Yes, delete it')}
+                        >
                           <input type="hidden" name="intent" value="delete-game" />
                           <input type="hidden" name="gameId" value={game.id} />
                           <button
@@ -257,7 +277,12 @@ export default function AdministrationPage() {
                                   </span>
                                 </div>
                                 {player.status !== 'admin' && (
-                                  <Form method="post">
+                                  <Form
+                                    method="post"
+                                    onSubmit={(event) =>
+                                      confirmAndSubmit(event, `Remove ${player.email}?`, 'Yes, remove')
+                                    }
+                                  >
                                     <input type="hidden" name="intent" value="remove-player" />
                                     <input type="hidden" name="gameId" value={game.id} />
                                     <input type="hidden" name="targetEmail" value={player.email} />
@@ -301,7 +326,12 @@ export default function AdministrationPage() {
                                       Approve
                                     </button>
                                   </Form>
-                                  <Form method="post">
+                                  <Form
+                                    method="post"
+                                    onSubmit={(event) =>
+                                      confirmAndSubmit(event, `Reject ${player.email}?`, 'Yes, reject')
+                                    }
+                                  >
                                     <input type="hidden" name="intent" value="reject-player" />
                                     <input type="hidden" name="gameId" value={game.id} />
                                     <input type="hidden" name="targetEmail" value={player.email} />
@@ -362,7 +392,10 @@ export default function AdministrationPage() {
                     {isWaiting ? (
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm text-slate-600">Waiting for admin approval.</p>
-                        <Form method="post">
+                        <Form
+                          method="post"
+                          onSubmit={(event) => confirmAndSubmit(event, 'Cancel this join request?', 'Yes, cancel')}
+                        >
                           <input type="hidden" name="intent" value="leave-game" />
                           <input type="hidden" name="gameId" value={game.id} />
                           <button
@@ -399,7 +432,10 @@ export default function AdministrationPage() {
                                   </span>
                                 </div>
                                 {player.email === user.email && (
-                                  <Form method="post">
+                                  <Form
+                                    method="post"
+                                    onSubmit={(event) => confirmAndSubmit(event, 'Leave this game?', 'Yes, leave')}
+                                  >
                                     <input type="hidden" name="intent" value="leave-game" />
                                     <input type="hidden" name="gameId" value={game.id} />
                                     <button
