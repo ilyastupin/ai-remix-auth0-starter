@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32" width="64" height="32">
+  <!-- Single-color outline icon -->
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+    <!-- Ground line (slightly wider than houses only) -->
+    <line x1="9" y1="26" x2="53" y2="26" />
+
+    <!-- Left house -->
+    <!-- Roof -->
+    <polygon points="10,14 20,6 30,14" />
+    <!-- Walls -->
+    <rect x="12" y="14" width="16" height="12" />
+    <!-- Door -->
+    <rect x="18" y="18" width="4" height="8" />
+    <!-- Window -->
+    <rect x="14" y="18" width="3" height="3" />
+
+    <!-- Right house (slightly smaller, offset) -->
+    <!-- Roof -->
+    <polygon points="32,16 42,9 52,16" />
+    <!-- Walls -->
+    <rect x="34" y="16" width="16" height="10" />
+    <!-- Door -->
+    <rect x="40" y="18" width="4" height="8" />
+    <!-- Window -->
+    <rect x="36" y="18" width="3" height="3" />
+  </g>
+</svg>

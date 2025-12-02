@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node'
 import { json } from '@remix-run/node'
 import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react'
-import { useCallback, useMemo, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AppTopNav } from '~/components/AppTopNav'
 import { requireAuth } from '~/services/auth.server'
 import {
@@ -175,6 +175,9 @@ function HexTile({ tile }: HexTileProps) {
   )
 }
 
+const HEX_ROW_LAYOUT = [3, 4, 5, 4, 3]
+const PLAYER_COLORS = ['#ef4444', '#22c55e', '#2563eb', '#f97316'] // red, green, blue, orange
+
 function normalizePlayerOrder(order: string[], confirmedPlayers: string[]) {
   const set = new Set(confirmedPlayers)
   const cleaned = order.filter((email) => set.has(email))
@@ -184,7 +187,9 @@ function normalizePlayerOrder(order: string[], confirmedPlayers: string[]) {
   return cleaned
 }
 
-const HEX_ROW_LAYOUT = [3, 4, 5, 4, 3]
+function colorForPlayer(index: number) {
+  return PLAYER_COLORS[index % PLAYER_COLORS.length]
+}
 
 function chunkHexRows<T>(tiles: T[]): T[][] {
   const rows: T[][] = []
@@ -234,6 +239,9 @@ export default function GamePage() {
   const navigation = useNavigation()
   const isSubmitting = navigation.state === 'submitting'
   const gameState = selectedGame?.gameState ?? { playerOrder: [], tiles: [] }
+  const [flippedResource, setFlippedResource] = useState<string | null>(null)
+  const flipTimer = useRef<NodeJS.Timeout | null>(null)
+  const [playerStats, setPlayerStats] = useState<Record<string, { points: number; army: number; lArmy: boolean; lRoad: boolean }>>({})
 
   const confirmedPlayers = useMemo(() => {
     if (!selectedGame) return []
@@ -264,6 +272,71 @@ export default function GamePage() {
       confirmButtonText: 'Close'
     })
   }, [])
+
+  const resourceHexImages: Record<string, string> = {
+    wheat: '/wheat.png',
+    brick: '/hills.png',
+    ore: '/mountains.png',
+    wood: '/wood.png',
+    sheep: '/pasture.png'
+  }
+
+  const handleResourceClick = useCallback((key: string) => {
+    if (flipTimer.current) {
+      clearTimeout(flipTimer.current)
+    }
+    setFlippedResource(key)
+    flipTimer.current = setTimeout(() => setFlippedResource(null), 3000)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (flipTimer.current) clearTimeout(flipTimer.current)
+    }
+  }, [])
+
+  const currentPlayerColor = useMemo(() => {
+    const idx = orderedPlayers.findIndex((p) => p.email === user.email)
+    return colorForPlayer(idx >= 0 ? idx : 0)
+  }, [orderedPlayers, user.email])
+
+  useEffect(() => {
+    if (orderedPlayers.length === 0) return
+    setPlayerStats((prev) => {
+      const next: typeof prev = {}
+      orderedPlayers.forEach((p) => {
+        next[p.email] = prev[p.email] ?? { points: 0, army: 0, lArmy: false, lRoad: false }
+      })
+      return next
+    })
+  }, [orderedPlayers])
+
+  const randomizeStats = useCallback(() => {
+    setPlayerStats((prev) => {
+      const next: typeof prev = {}
+      orderedPlayers.forEach((p, idx) => {
+        const roadLen = Math.floor(Math.random() * 8)
+        next[p.email] = {
+          points: Math.floor(Math.random() * 10),
+          army: Math.floor(Math.random() * 6),
+          roadLen,
+          lArmy: Math.random() > 0.7,
+          lRoad: roadLen >= 5
+        }
+      })
+      return next
+    })
+  }, [orderedPlayers])
+
+  const clearStats = useCallback(() => {
+    setPlayerStats((prev) => {
+      const next: typeof prev = {}
+      orderedPlayers.forEach((p) => {
+        next[p.email] = { points: 0, army: 0, roadLen: 0, lArmy: false, lRoad: false }
+      })
+      return next
+    })
+  }, [orderedPlayers])
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -404,6 +477,22 @@ export default function GamePage() {
                       Autosaves
                     </span>
                   )}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={randomizeStats}
+                      className="rounded-md bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-200"
+                    >
+                      Test stats
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearStats}
+                      className="rounded-md bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-200"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
 
                 {orderedPlayers.length === 0 ? (
@@ -419,7 +508,26 @@ export default function GamePage() {
                           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                             #{index + 1}
                           </span>
-                          <span className="font-semibold text-slate-900">{player.email}</span>
+                          <span
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: colorForPlayer(index) }}
+                            aria-label="player color"
+                          />
+                          <span className="font-semibold text-slate-900">
+                            {player.email}
+                            {player.email === user.email && (
+                              <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                                me
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+                              player.status === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                            }`}
+                          >
+                            {player.status}
+                          </span>
                           <span
                             className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
                               player.status === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
@@ -428,38 +536,73 @@ export default function GamePage() {
                             {player.status}
                           </span>
                         </div>
-                        {selectedGame.myStatus === 'admin' && selectedGame.status === 'not_started' && (
-                          <div className="flex items-center gap-1">
-                            <Form method="post">
-                              <input type="hidden" name="intent" value="reorder-players" />
-                              <input type="hidden" name="gameId" value={selectedGame.id} />
-                              <input type="hidden" name="orderJson" value={orderJson} />
-                              <input type="hidden" name="targetEmail" value={player.email} />
-                              <input type="hidden" name="direction" value="up" />
-                              <button
-                                type="submit"
-                                disabled={isSubmitting || index === 0}
-                                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-                              >
-                                ↑
-                              </button>
-                            </Form>
-                            <Form method="post">
-                              <input type="hidden" name="intent" value="reorder-players" />
-                              <input type="hidden" name="gameId" value={selectedGame.id} />
-                              <input type="hidden" name="orderJson" value={orderJson} />
-                              <input type="hidden" name="targetEmail" value={player.email} />
-                              <input type="hidden" name="direction" value="down" />
-                              <button
-                                type="submit"
-                                disabled={isSubmitting || index === orderedPlayers.length - 1}
-                                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-                              >
-                                ↓
-                              </button>
-                            </Form>
+                        <div className="flex flex-col items-end gap-1 text-xs text-slate-700">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold">
+                              {Array.from({ length: playerStats[player.email]?.army ?? 0 }).map((_, i) => (
+                                <span key={i}>⚔️</span>
+                              ))}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold">
+                              {Array.from({ length: playerStats[player.email]?.roadLen ?? 0 }).map((_, i) => (
+                                <span key={i}>🚂</span>
+                              ))}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold">
+                              🏆 {playerStats[player.email]?.points ?? 0} pts
+                            </span>
+                          <span
+                            className="rounded-full px-2 py-1 font-semibold"
+                            style={{
+                              backgroundColor: playerStats[player.email]?.lArmy ? '#fef08a' : '#f8fafc',
+                              color: playerStats[player.email]?.lArmy ? '#92400e' : '#cbd5e1'
+                            }}
+                          >
+                            🛡️ Army
+                          </span>
+                          <span
+                            className="rounded-full px-2 py-1 font-semibold"
+                            style={{
+                              backgroundColor: playerStats[player.email]?.lRoad ? '#fef08a' : '#f8fafc',
+                              color: playerStats[player.email]?.lRoad ? '#92400e' : '#cbd5e1'
+                            }}
+                          >
+                            🛤️ Road
+                          </span>
                           </div>
-                        )}
+                          {selectedGame.myStatus === 'admin' && selectedGame.status === 'not_started' && (
+                            <div className="flex items-center gap-1">
+                              <Form method="post">
+                                <input type="hidden" name="intent" value="reorder-players" />
+                                <input type="hidden" name="gameId" value={selectedGame.id} />
+                                <input type="hidden" name="orderJson" value={orderJson} />
+                                <input type="hidden" name="targetEmail" value={player.email} />
+                                <input type="hidden" name="direction" value="up" />
+                                <button
+                                  type="submit"
+                                  disabled={isSubmitting || index === 0}
+                                  className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                                >
+                                  ↑
+                                </button>
+                              </Form>
+                              <Form method="post">
+                                <input type="hidden" name="intent" value="reorder-players" />
+                                <input type="hidden" name="gameId" value={selectedGame.id} />
+                                <input type="hidden" name="orderJson" value={orderJson} />
+                                <input type="hidden" name="targetEmail" value={player.email} />
+                                <input type="hidden" name="direction" value="down" />
+                                <button
+                                  type="submit"
+                                  disabled={isSubmitting || index === orderedPlayers.length - 1}
+                                  className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                                >
+                                  ↓
+                                </button>
+                              </Form>
+                            </div>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -522,6 +665,32 @@ export default function GamePage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Pieces</h3>
+                    <p className="text-sm text-slate-600">Your available settlements, cities, and roads.</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  {[
+                    { key: 'settlement', image: '/settlement.svg', label: 'Settlements', count: 5 },
+                    { key: 'city', image: '/city.svg', label: 'Cities', count: 4 },
+                    { key: 'road', image: '/road.svg', label: 'Roads', count: 15 }
+                  ].map((piece) => (
+                    <div
+                      key={piece.key}
+                      className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm"
+                      style={{ color: currentPlayerColor }}
+                    >
+                      <img src={piece.image} alt={piece.label} className="h-12 w-16 object-contain" />
+                      <div className="mt-2 text-sm font-semibold text-slate-900">{piece.label}</div>
+                      <div className="text-xs text-slate-600">Available: {piece.count}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -591,24 +760,85 @@ export default function GamePage() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-5">
+                <div className="mt-4 grid gap-4 sm:grid-cols-6">
                   {[
                     { key: 'wheat', image: '/bread.png' },
                     { key: 'brick', image: '/brick.png' },
                     { key: 'ore', image: '/iron.png' },
                     { key: 'wood', image: '/lumber.png' },
-                    { key: 'sheep', image: '/sheep.png' }
+                    { key: 'sheep', image: '/sheep.png' },
+                    { key: 'back', image: '/back-side.png' }
                   ].map((pile) => (
                     <div
                       key={pile.key}
                       className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm"
+                      style={{ perspective: '1000px' }}
+                      onClick={() => handleResourceClick(pile.key)}
                     >
-                      <img src={pile.image} alt={pile.key} className="h-50 w-32 object-contain" />
-                      <div className="mt-2 text-sm font-semibold text-slate-900">Cards: 19</div>
+                      <div
+                        style={{
+                          width: 128,
+                          height: 200,
+                          position: 'relative',
+                          transformStyle: 'preserve-3d',
+                          transition: 'transform 0.6s',
+                          transform: flippedResource === pile.key ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backfaceVisibility: 'hidden',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#f8fafc'
+                          }}
+                        >
+                          <img src={pile.image} alt={pile.key} className="h-full w-full object-contain" />
+                        </div>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backfaceVisibility: 'hidden',
+                            transform: 'rotateY(180deg)',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            backgroundImage: `url(${resourceHexImages[pile.key] ?? ''})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundColor: '#e2e8f0'
+                          }}
+                        />
+                        {pile.key === 'back' && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              backfaceVisibility: 'hidden',
+                              transform: 'rotateY(180deg)',
+                              borderRadius: '6px',
+                              overflow: 'hidden',
+                              backgroundImage: `url(${resourceHexImages[pile.key] ?? ''})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundColor: '#e2e8f0'
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div className="mt-2 text-sm font-semibold text-slate-900">
+                        Cards: {pile.key === 'back' ? 25 : 19}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+
             </div>
           </div>
         )}
