@@ -241,7 +241,10 @@ export default function GamePage() {
   const gameState = selectedGame?.gameState ?? { playerOrder: [], tiles: [] }
   const [flippedResource, setFlippedResource] = useState<string | null>(null)
   const flipTimer = useRef<NodeJS.Timeout | null>(null)
-  const [playerStats, setPlayerStats] = useState<Record<string, { points: number; army: number; lArmy: boolean; lRoad: boolean }>>({})
+  const [activePiece, setActivePiece] = useState<string | null>(null)
+  const [playerStats, setPlayerStats] = useState<
+    Record<string, { points: number; army: number; roadLen: number; lArmy: boolean; lRoad: boolean }>
+  >({})
 
   const confirmedPlayers = useMemo(() => {
     if (!selectedGame) return []
@@ -305,7 +308,7 @@ export default function GamePage() {
     setPlayerStats((prev) => {
       const next: typeof prev = {}
       orderedPlayers.forEach((p) => {
-        next[p.email] = prev[p.email] ?? { points: 0, army: 0, lArmy: false, lRoad: false }
+        next[p.email] = prev[p.email] ?? { points: 0, army: 0, roadLen: 0, lArmy: false, lRoad: false }
       })
       return next
     })
@@ -676,16 +679,34 @@ export default function GamePage() {
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   {[
-                    { key: 'settlement', image: '/settlement.svg', label: 'Settlements', count: 5 },
-                    { key: 'city', image: '/city.svg', label: 'Cities', count: 4 },
-                    { key: 'road', image: '/road.svg', label: 'Roads', count: 15 }
+                    { key: 'settlement', image: '/settlement.svg', label: 'Settlements', count: 5, w: 32, h: 27 },
+                    { key: 'city', image: '/city.svg', label: 'Cities', count: 4, w: 32, h: 32 },
+                    { key: 'road', image: '/road.svg', label: 'Roads', count: 15, w: 32, h: 16 }
                   ].map((piece) => (
                     <div
                       key={piece.key}
-                      className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm"
+                      className={`flex flex-col items-center rounded-lg border bg-slate-50 p-3 shadow-sm transition ${
+                        activePiece === piece.key ? 'ring-2 ring-offset-2 ring-indigo-500 border-indigo-200' : 'border-slate-200'
+                      } cursor-pointer`}
                       style={{ color: currentPlayerColor }}
+                      onClick={() => setActivePiece((prev) => (prev === piece.key ? null : piece.key))}
                     >
-                      <img src={piece.image} alt={piece.label} className="h-12 w-16 object-contain" />
+                      <div
+                        style={{
+                          width: piece.w,
+                          height: piece.h,
+                          backgroundColor: currentPlayerColor,
+                          maskImage: `url(${piece.image})`,
+                          WebkitMaskImage: `url(${piece.image})`,
+                          maskRepeat: 'no-repeat',
+                          WebkitMaskRepeat: 'no-repeat',
+                          maskPosition: 'center',
+                          WebkitMaskPosition: 'center',
+                          maskSize: 'contain',
+                          WebkitMaskSize: 'contain'
+                        }}
+                        aria-label={piece.label}
+                      />
                       <div className="mt-2 text-sm font-semibold text-slate-900">{piece.label}</div>
                       <div className="text-xs text-slate-600">Available: {piece.count}</div>
                     </div>
@@ -773,7 +794,7 @@ export default function GamePage() {
                       key={pile.key}
                       className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm"
                       style={{ perspective: '1000px' }}
-                      onClick={() => handleResourceClick(pile.key)}
+                      onClick={() => pile.key !== 'back' && handleResourceClick(pile.key)}
                     >
                       <div
                         style={{
